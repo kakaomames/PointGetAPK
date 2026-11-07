@@ -2,14 +2,8 @@ name: Android APK Build Workflow
 
 on:
   push:
-    branches:
-      - main
-      - master
-  pull_request:
-    branches:
-      - main
-      - master
-  workflow_dispatch: # GitHubの画面から手動実行ボタンを押して動かすことも可能
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -19,30 +13,25 @@ jobs:
       - name: リポジトリのチェックアウト
         uses: actions/checkout@v4
 
-      - name: JDK 17 のセットアップ
+      - name: JDK 21 のセットアップ
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'  # 17に修正！
+          java-version: '21'
 
-      - name: Gradleのキャッシュ設定 (ビルド爆速化)
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+      - name: Gradleのインストール (ラッパー未所持対策)
+        run: sudo apt-get update && sudo apt-get install -y gradle
+
+      - name: Gradle ラッパーの自動生成
+        run: gradle wrapper --gradle-version 8.5
 
       - name: gradlew に実行権限を付与
-        run: |
-           chmod +x gradlew
+        run: chmod +x gradlew
 
       - name: Android Debug APK のビルド
         run: ./gradlew assembleDebug
 
-      - name: 生成された APK を Artifacts にアップロード
+      - name: 生成された APK をアップロード
         uses: actions/upload-artifact@v4
         with:
           name: poikatsu-debug-apk
