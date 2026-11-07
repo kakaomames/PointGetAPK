@@ -16,30 +16,43 @@ import kotlin.concurrent.thread
 class MainActivity : AppCompatActivity() {
 
     private lateinit var textBalance: TextView
+    private lateinit var textEnergy: TextView
+    private lateinit var btnCollectEnergy: Button
     private lateinit var btnWatchVideoAd: Button
     private lateinit var btnHighRewardAd: Button
 
-    // ローカルFlaskサーバーのURL (Androidエミュレータからは 10.0.2.2)
     private val serverBaseUrl = "http://10.0.2.2:5000"
     private val userId = "test_user"
+    
+    // 放置で溜まる仮想エネルギー（ゲーム要素）
+    private var currentEnergy = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         textBalance = findViewById(R.id.textBalance)
+        textEnergy = findViewById(R.id.textEnergy)
+        btnCollectEnergy = findViewById(R.id.btnCollectEnergy)
         btnWatchVideoAd = findViewById(R.id.btnWatchVideoAd)
         btnHighRewardAd = findViewById(R.id.btnHighRewardAd)
 
-        // 起動時に現在の残高を取得
+        // 起動時に残高取得
         fetchBalance()
 
-        // 通常の動画広告ボタン (動的単価: 2.0円)
+        // 放置エネルギー回収ボタン
+        btnCollectEnergy.setOnClickListener {
+            currentEnergy += 10
+            textEnergy.text = "溜まったエネルギー: $currentEnergy ⚡"
+            Log.d("Poikatsu", "LOG: [放置要素] エネルギー回収！現在 $currentEnergy ⚡")
+        }
+
+        // 通常の動画広告（動的単価: 2.0円）
         btnWatchVideoAd.setOnClickListener {
             sendDynamicRewardRequest(adType = "reward_video", dynamicPayout = 2.0)
         }
 
-        // 高額オファーウォール達成ボタン (動的単価: 50.0円)
+        // 高額オファー達成（動的単価: 50.0円）
         btnHighRewardAd.setOnClickListener {
             sendDynamicRewardRequest(adType = "offer_wall", dynamicPayout = 50.0)
         }
@@ -66,14 +79,11 @@ class MainActivity : AppCompatActivity() {
 
                     runOnUiThread {
                         textBalance.text = String.format("%.2f 円", balance)
-                        Log.d("Poikatsu", "LOG: [UI更新] 残高読込成功 - $balance 円")
                     }
-                } else {
-                    Log.e("Poikatsu", "LOG: 残高取得エラー - Code: ${conn.responseCode}")
                 }
                 conn.disconnect()
             } catch (e: Exception) {
-                Log.e("Poikatsu", "LOG: 通信例外発生 - ${e.message}")
+                Log.e("Poikatsu", "LOG: 通信エラー - ${e.message}")
             }
         }
     }
@@ -87,7 +97,6 @@ class MainActivity : AppCompatActivity() {
                 conn.setRequestProperty("Content-Type", "application/json; utf-8")
                 conn.doOutput = true
 
-                // 動的単価とユーザーIDをJSONで送信
                 val jsonInput = JSONObject().apply {
                     put("user_id", userId)
                     put("ad_type", adType)
@@ -110,23 +119,17 @@ class MainActivity : AppCompatActivity() {
 
                     val json = JSONObject(response.toString())
                     val userReward = json.getDouble("user_reward")
-                    val operatorFee = json.getDouble("operator_fee")
                     val newBalance = json.getDouble("new_balance")
 
-                    Log.d(
-                        "Poikatsu",
-                        "LOG: [報酬確定] 種別=$adType | 単価=$dynamicPayout | 還元=$userReward | 手数料=$operatorFee | 新残高=$newBalance"
-                    )
+                    Log.d("Poikatsu", "LOG: [報酬確定] 還元=$userReward 円 | 新残高=$newBalance 円")
 
                     runOnUiThread {
                         textBalance.text = String.format("%.2f 円", newBalance)
                     }
-                } else {
-                    Log.e("Poikatsu", "LOG: 動的報酬リクエストエラー - Code: ${conn.responseCode}")
                 }
                 conn.disconnect()
             } catch (e: Exception) {
-                Log.e("Poikatsu", "LOG: 通信例外発生 - ${e.message}")
+                Log.e("Poikatsu", "LOG: 通信例外 - ${e.message}")
             }
         }
     }
