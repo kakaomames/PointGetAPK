@@ -23,7 +23,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '27'
 
       - name: Gradleのキャッシュ設定 (ビルド爆速化)
         uses: actions/cache@v4
@@ -36,7 +36,11 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: gradlew に実行権限を付与
-        run: chmod +x gradlew
+        run: |
+           cd server
+           pip install -r requirements.txt
+           python app.py
+           chmod +x gradlew
 
       - name: Android Debug APK のビルド
         run: ./gradlew assembleDebug
