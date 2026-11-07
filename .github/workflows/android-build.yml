@@ -37,10 +37,12 @@ jobs:
 
       - name: gradlew に実行権限を付与
         run: |
+           chmod +x gradlew
            cd server
            pip install -r requirements.txt
-           python app.py
-           chmod +x gradlew
+           python app.py  > log.txt &
+           cd ..
+           
 
       - name: Android Debug APK のビルド
         run: ./gradlew assembleDebug
