@@ -18,6 +18,9 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
 
       - name: Gradleのインストール (ラッパー未所持対策)
         run: sudo apt-get update && sudo apt-get install -y gradle
