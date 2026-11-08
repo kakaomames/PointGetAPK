@@ -1,42 +1,35 @@
-name: Android APK Build Workflow
+name: Build Android APK
 
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: リポジトリのチェックアウト
-        uses: actions/checkout@v4
+    - name: Checkout Repository
+      uses: actions/checkout@v4
 
-      - name: JDK 21 のセットアップ
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '21'
 
+    # ⭐ GitHub公式のGradleアクションで、ラッパーや環境を自動セットアップ！
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: '8.5'
 
-      - name: Gradleのインストール (ラッパー未所持対策)
-        run: sudo apt-get update && sudo apt-get install -y gradle
+    # ⭐ 自動生成された gradlew を使ってビルド実行
+    - name: Build Debug APK with Gradle
+      run: ./gradlew assembleDebug
 
-      - name: Gradle ラッパーの自動生成
-        run: gradle wrapper --gradle-version 8.5
-
-      - name: gradlew に実行権限を付与
-        run: chmod +x gradlew
-
-      - name: Android Debug APK のビルド
-        run: ./gradlew assembleDebug
-
-      - name: 生成された APK をアップロード
-        uses: actions/upload-artifact@v4
-        with:
-          name: poikatsu-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 7
+    - name: Upload APK Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug-apk
+        path: app/build/outputs/apk/debug/app-debug-apk.apk
