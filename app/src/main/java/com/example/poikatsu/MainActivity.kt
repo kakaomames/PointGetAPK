@@ -5,6 +5,11 @@ import android.util.Log
 import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.MobileAds
+import com.google.android.gms.ads.rewarded.RewardedAd
+import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -21,8 +26,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnWatchVideoAd: Button
     private lateinit var btnHighRewardAd: Button
 
-    private val serverBaseUrl = "http://10.0.2.2:5000"
+    // アプリ内ローカルで起動するFlaskサーバーに向ける！
+    private val serverBaseUrl = "http://127.0.0.1:5000"
     private val userId = "test_user"
+
+    // AdMob リワード広告関連
+    private var rewardedAd: RewardedAd? = null
+    private val TAG = "PoikatsuAdMob"
+    // テスト用のリワード広告ユニットID（本番時は自分のIDに変更！）
+    private val adUnitId = "ca-app-pub-3940256099942544/5224354917"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,7 +46,13 @@ class MainActivity : AppCompatActivity() {
         btnWatchVideoAd = findViewById(R.id.btnWatchVideoAd)
         btnHighRewardAd = findViewById(R.id.btnHighRewardAd)
 
-        // 起動時に残高およびゲーム情報を一括取得
+        // 1. Mobile Ads SDK の初期化
+        MobileAds.initialize(this) {}
+
+        // 2. 初回広告のロードを実行
+        loadRewardedAd()
+
+        // 3. 起動時に残高およびゲーム情報を一括取得
         fetchUserInfo()
 
         // 金銭リスクゼロのゲームアクション
@@ -42,14 +60,47 @@ class MainActivity : AppCompatActivity() {
             sendGameActionRequest(expGained = 25)
         }
 
-        // 動画広告 99%還元リクエスト (動的単価: 2.0円)
+        // 動画広告ボタン：AdMobの広告を表示し、視聴完了後に99%還元APIをキック
         btnWatchVideoAd.setOnClickListener {
-            sendDynamicRewardRequest(adType = "reward_video", dynamicPayout = 2.0)
+            showRewardedAd(dynamicPayout = 2.0, adType = "reward_video")
         }
 
-        // 高額オファー 99%還元リクエスト (動的単価: 50.0円)
+        // 高額オファーボタン
         btnHighRewardAd.setOnClickListener {
             sendDynamicRewardRequest(adType = "offer_wall", dynamicPayout = 50.0)
+        }
+    }
+
+    private fun loadRewardedAd() {
+        val adRequest = AdRequest.Builder().build()
+        RewardedAd.load(this, adUnitId, adRequest, object : RewardedAdLoadCallback() {
+            override fun onAdFailedToLoad(adError: LoadAdError) {
+                Log.d(TAG, "LOG: [広告ロード失敗] ${adError.message}")
+                rewardedAd = null
+            }
+
+            override fun onAdLoaded(ad: RewardedAd) {
+                Log.d(TAG, "LOG: [広告ロード成功]")
+                rewardedAd = ad
+            }
+        })
+    }
+
+    private fun showRewardedAd(dynamicPayout: Double, adType: String) {
+        if (rewardedAd != null) {
+            rewardedAd?.show(this) { rewardItem ->
+                // 🎬 ユーザーが動画を最後まで視聴した瞬間！
+                Log.d(TAG, "LOG: [広告視聴完了] 報酬獲得: ${rewardItem.amount} ${rewardItem.type}")
+
+                // Flaskサーバーの動的還元APIへリクエストを送信！
+                sendDynamicRewardRequest(adType = adType, dynamicPayout = dynamicPayout)
+
+                // 次回に備えて新しい広告を再ロードしておく
+                loadRewardedAd()
+            }
+        } else {
+            Log.d(TAG, "LOG: [警告] 広告がまだロードされていません。再ロードを試みます。")
+            loadRewardedAd()
         }
     }
 
